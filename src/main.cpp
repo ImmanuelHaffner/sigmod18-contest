@@ -2,6 +2,7 @@
 
 #include "Catalog.hpp"
 #include "Relation.hpp"
+#include <err.h>
 #include <string>
 #include <vector>
 
@@ -15,7 +16,7 @@ int main()
     for (;;) {
         std::cin >> buf;
         if (not std::cin.good())
-            break;
+            errx(EXIT_FAILURE, "Unexpected end of input.");
         if (buf == "Done")
             break;
         C.add_relation(buf);
