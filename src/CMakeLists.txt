@@ -6,3 +6,4 @@ SET(SIG18_SOURCES
     )
 
 add_executable(main ${SIG18_SOURCES})
+add_executable(harness harness.cpp)
