@@ -1,7 +1,8 @@
 SET(SIG18_SOURCES
     main.cpp
-    Relation.cpp
     Catalog.cpp
+    QueryDescription.cpp
+    Relation.cpp
     StringPool.cpp
     )
 
