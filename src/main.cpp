@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "analyze.hpp"
 #include "Catalog.hpp"
 #include "QueryDescription.hpp"
 #include "Relation.hpp"
@@ -11,23 +12,6 @@
 
 int main()
 {
-#if 0
-    /*-- Modify the locale to make '|' a delimiter character. --------------------------------------------------------*/
-    class my_ctype : public std::ctype<char>
-    {
-        mask table_[table_size];
-
-        public:
-        my_ctype(size_t refs = 0) : std::ctype<char>(table_, false, refs)
-        {
-            std::copy_n(classic_table(), table_size, table_);
-            table_[std::size_t('|')] = (mask) space;
-        }
-    };
-    std::locale loc(std::locale::classic(), new my_ctype());
-    std::cin.imbue(loc);
-#endif
-
     /*-- Read the input relations. -----------------------------------------------------------------------------------*/
     Catalog C;
     std::string buf;
@@ -46,12 +30,19 @@ int main()
     std::cerr << '\n';
 #endif
 
+    /*-- Read the workload batches. ----------------------------------------------------------------------------------*/
+    std::vector<QueryDescription> batch;
     for (;;) {
         auto Q = QueryDescription::Parse(std::cin);
         if (not std::cin.good())
             break;
-        std::cerr << Q << '\n';
+        batch.push_back(Q);
         if (std::cin.peek() == 'F')
             break;
     }
+
+    for (auto &Q : batch)
+        std::cerr << Q << '\n';
+
+    analyze(batch);
 }

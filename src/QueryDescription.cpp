@@ -25,7 +25,7 @@ QueryDescription QueryDescription::Parse(std::istream &in)
 
         std::size_t relation;
         in >> relation;
-        Q.relations_.push_back(relation);
+        Q.relations.push_back(relation);
     }
     if ((chr = in.get()) != '|')
         errx(EXIT_FAILURE, "corrupted workload: expected '|', got '%c'", chr);
@@ -48,10 +48,10 @@ QueryDescription QueryDescription::Parse(std::istream &in)
             std::size_t attribute_right;
             in >> attribute_right;
             if (in.good())
-                Q.joins_.push_back({lhs, {std::size_t(num), attribute_right}});
+                Q.joins.push_back({lhs, {std::size_t(num), attribute_right}});
         } else { /* we parsed a constant */
             if (in.good())
-                Q.filters_.push_back({lhs, num, op});
+                Q.filters.push_back({lhs, num, op});
         }
 
         if (in.peek() == '&')
@@ -70,7 +70,7 @@ QueryDescription QueryDescription::Parse(std::istream &in)
 
         Attr P = parse_attr(in);
         if (in.good())
-            Q.projections_.push_back(P);
+            Q.projections.push_back(P);
     }
 
     if (not in.good())
@@ -81,26 +81,26 @@ QueryDescription QueryDescription::Parse(std::istream &in)
 
 std::ostream & operator<<(std::ostream &out, const QueryDescription &Q) {
     /* Print relations. */
-    for (std::size_t i = 0, end = Q.relations_.size(); i != end; ++i) {
+    for (std::size_t i = 0, end = Q.relations.size(); i != end; ++i) {
         if (i != 0) out << ' ';
-        out << Q.relations_[i];
+        out << Q.relations[i];
     }
     out << '|';
     /* Print joins. */
-    for (std::size_t i = 0, end = Q.joins_.size(); i != end; ++i) {
+    for (std::size_t i = 0, end = Q.joins.size(); i != end; ++i) {
         if (i != 0) out << '&';
-        out << Q.joins_[i];
+        out << Q.joins[i];
     }
-    if (not Q.joins_.empty())
+    if (not Q.joins.empty())
         out << '&';
-    for (std::size_t i = 0, end = Q.filters_.size(); i != end; ++i) {
+    for (std::size_t i = 0, end = Q.filters.size(); i != end; ++i) {
         if (i != 0) out << '&';
-        out << Q.filters_[i];
+        out << Q.filters[i];
     }
     out << '|';
-    for (std::size_t i = 0, end = Q.projections_.size(); i != end; ++i) {
+    for (std::size_t i = 0, end = Q.projections.size(); i != end; ++i) {
         if (i != 0) out << ' ';
-        out << Q.projections_[i];
+        out << Q.projections[i];
     }
 
     return out;

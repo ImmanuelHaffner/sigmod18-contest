@@ -32,14 +32,11 @@ class QueryDescription
         friend std::ostream & operator<<(std::ostream &out, const Filter &F) { return out << F.lhs << F.op << F.value; }
     };
 
-    private:
-    std::vector<std::size_t> relations_;
-    std::vector<Join> joins_;
-    std::vector<Filter> filters_;
-    std::vector<Attr> projections_;
+    std::vector<std::size_t> relations;
+    std::vector<Join> joins;
+    std::vector<Filter> filters;
+    std::vector<Attr> projections;
 
-    public:
     static QueryDescription Parse(std::istream &in);
-
     friend std::ostream & operator<<(std::ostream &out, const QueryDescription &Q);
 };
