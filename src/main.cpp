@@ -2,6 +2,7 @@
 
 #include "analyze.hpp"
 #include "Catalog.hpp"
+#include "Index.hpp"
 #include "QueryDescription.hpp"
 #include "Relation.hpp"
 #include <algorithm>

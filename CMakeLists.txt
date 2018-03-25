@@ -25,6 +25,7 @@ set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS} ${CMAKE_COMPILE_FLAGS}")
 set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG} -g -fsanitize=address")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
 
+add_custom_target(check COMMAND ctest --output-on-failure)
 
 include_directories(src)
 add_subdirectory(src)

@@ -12,9 +12,7 @@ class QueryDescription
     {
         std::size_t relation;
         std::size_t attribute;
-        friend std::ostream & operator<<(std::ostream &out, Attr A) {
-            return out << A.relation << '.' << A.attribute;
-        }
+        friend std::ostream & operator<<(std::ostream &out, Attr A) { return out << A.relation << '.' << A.attribute; }
     };
 
     struct Join
