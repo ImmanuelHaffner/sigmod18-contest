@@ -5,6 +5,7 @@
 #include "Index.hpp"
 #include "QueryDescription.hpp"
 #include "Relation.hpp"
+#include "Scheduler.hpp"
 #include <algorithm>
 #include <err.h>
 #include <string>
@@ -46,4 +47,7 @@ int main()
         std::cerr << Q << '\n';
 
     analyze(batch);
+
+    Scheduler S(C, 1);
+    S.execute(batch);
 }
