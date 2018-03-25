@@ -30,7 +30,7 @@ class HashJoinAndAggregate
     { }
 
     /** Add an aggregate to form. */
-    void aggreate(std::size_t relation, std::size_t attribute) { aggregates_.emplace_back(relation, attribute); }
+    void add_aggreate(std::size_t relation, std::size_t attribute) { aggregates_.emplace_back(relation, attribute); }
 
-    Index & eval();
+    Index eval();
 };
