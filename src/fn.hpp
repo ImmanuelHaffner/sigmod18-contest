@@ -76,3 +76,13 @@ struct Murmur3_64
         return v;
     }
 };
+
+/** Computes n over k. */
+inline unsigned binomial(unsigned n, unsigned k)
+{
+    unsigned c = 1;
+    k = std::min(k, n - k); /* take advantage of symmetry */
+    for (unsigned i = 1; i <= k; i++, n--)
+        c = c / i * n + c % i * n / i;  /* split c*n/i into (c/i*i + c%i)*n/i */
+    return c;
+}
