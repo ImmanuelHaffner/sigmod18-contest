@@ -1,7 +1,6 @@
 SET(SIG18_SOURCES
     main.cpp
     Analysis.cpp
-    analyze.cpp
     Catalog.cpp
     QueryDescription.cpp
     Relation.cpp
