@@ -1,6 +1,5 @@
 #include <iostream>
 
-#include "analyze.hpp"
 #include "Catalog.hpp"
 #include "Index.hpp"
 #include "QueryDescription.hpp"
@@ -45,8 +44,6 @@ int main()
 
     for (auto &Q : batch)
         std::cerr << Q << '\n';
-
-    analyze(batch);
 
     Scheduler S(C, 1);
     S.execute(batch);
