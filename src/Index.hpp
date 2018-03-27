@@ -10,6 +10,8 @@ class Index
 
     public:
     using size_type = typename table_type::size_type;
+    using iterator = typename table_type::iterator;
+    using const_iterator = typename table_type::const_iterator;
 
     private:
     table_type table_;
@@ -28,7 +30,7 @@ class Index
     size_type num_fields() const { return num_fields_; }
 
 
-    std::pair<typename table_type::iterator, bool> put(uint64_t key) {
+    std::pair<iterator, bool> put(uint64_t key) {
         /* TODO use insert_hint to improve performance */
         auto it = table_.find(key);
         if (it != table_.end()) return {it, false};
@@ -41,6 +43,16 @@ class Index
         return value;
     }
 
+    iterator find(uint64_t key) { return table_.find(key); }
+    const_iterator find(uint64_t key) const { return table_.find(key); }
+
+    iterator begin() { return table_.begin(); }
+    iterator end()   { return table_.end(); }
+    const_iterator begin() const { return table_.begin(); }
+    const_iterator end()   const { return table_.end(); }
+    const_iterator cbegin() const { return table_.begin(); }
+    const_iterator cend()   const { return table_.end(); }
+
     private:
-    uint64_t * get_fresh_value() { return new uint64_t[num_fields_]; }
+    uint64_t * get_fresh_value() { return new uint64_t[num_fields_](); }
 };

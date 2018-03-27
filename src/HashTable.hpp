@@ -61,6 +61,12 @@ struct HashTable
             return *this;
         }
 
+        the_iterator operator++(int) {
+            the_iterator cpy(*this);
+            this->operator++();
+            return cpy;
+        }
+
         /** Return a reference to the designated element */
         reference_type operator*() const { /* TODO 3.1 */ return *ptr; }
         /** Return a pointer to the designated element. */
