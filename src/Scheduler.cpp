@@ -1,9 +1,11 @@
 #include "Scheduler.hpp"
 
+#include "HashTable.hpp"
 #include "QueryPlanning.hpp"
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <utility>
 
 
@@ -18,47 +20,39 @@ void Scheduler::execute(std::vector<QueryDescription> &batch)
      *   5. Join the threads and emit the results in order.
      */
 
-    /* Compute a query plan. */
-#if 0
-    for (auto &Q : batch) {
-        const auto num_relations = Q.relations.size();
-        const std::size_t size_join_matrix = num_relations * (num_relations + 1) / 2;
-        float *join_matrix = new float[size_join_matrix];
-        std::fill_n(join_matrix, size_join_matrix, 1.f);
-
-        auto pos = [](std::size_t lhs, std::size_t rhs) {
-            if (lhs < rhs) std::swap(lhs, rhs);
-            return lhs * (lhs + 1) / 2 + rhs;
-        };
-
-        for (auto J : Q.joins) {
-            auto lhs = J.lhs.relation;
-            auto rhs = J.rhs.relation;
-            join_matrix[pos(lhs, rhs)] *= .9f;
-        }
-
-#ifndef NDEBUG
-        std::cerr << "Join Matrix for query " << Q << '\n';
-        for (std::size_t i = 0; i != num_relations; ++i) {
-            std::cerr << 'r' << std::setw(2) << Q.relations[i];
-            for (std::size_t j = 0; j <= i; ++j)
-                std::cerr << " | " << std::setw(3) << join_matrix[pos(i, j)];
-            std::cerr << '\n';
-        }
-        std::cerr << "   ";
-        for (auto r : Q.relations)
-            std::cerr << " | r" << std::setw(2) << r;
-        std::cerr << '\n' << std::endl;
-#endif
-
-        delete[] join_matrix;
-    }
-#else
+    /* Compute a query plan.  Considers only left-deep plans for now. */
     for (auto &Q : batch) {
         JoinMatrix M(Q);
         std::cerr << "join matrix for query " << Q << '\n';
         M.print(std::cerr, Q);
         std::cerr << std::endl;
+
+        /* Find the cheapest join to start with. */
+        QueryDescription::Join start = Q.joins[0];
+        std::size_t min_cardinality = std::numeric_limits<std::size_t>::max();
+        for (auto J : Q.joins) {
+            const auto lhs = J.lhs.relation;
+            const auto rhs = J.rhs.relation;
+
+            Relation &relation_lhs = catalog[Q.relations[lhs]];
+            Relation &relation_rhs = catalog[Q.relations[rhs]];
+
+            const std::size_t cardinality = relation_lhs.rows() * relation_rhs.rows() * M.at(lhs, rhs);
+            std::cerr << "- estimated cardinality: r" << Q.relations[lhs] << " |X| r" << Q.relations[rhs] << " => "
+                      << relation_lhs.rows() << " * " << relation_rhs.rows() << " * " << M.at(lhs, rhs) << " = "
+                      << (cardinality / 1e6) << " Mio\n";
+
+            if (cardinality < min_cardinality) {
+                min_cardinality = cardinality;
+                start = J;
+            }
+        }
+        std::cerr << "start with join " << start << '\n';
+
+        bool *used_relations = new bool[Q.relations.size()]();
+        used_relations[start.lhs.relation] = true;
+        used_relations[start.rhs.relation] = true;
+
+        /* Consecutively search for the next cheapest join. */
     }
-#endif
 }

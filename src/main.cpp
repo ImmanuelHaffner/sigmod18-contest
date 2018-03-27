@@ -25,9 +25,9 @@ int main()
         C.add_relation(buf);
     }
 #ifndef NDEBUG
-    std::cerr << "loaded relations:";
+    std::cerr << "loaded relations:\n";
     for (auto &r : C.relations())
-        std::cerr << ' ' << *r << ',';
+        std::cerr << "  * " << *r << '\n';
     std::cerr << '\n';
 #endif
 
@@ -44,6 +44,7 @@ int main()
 
     for (auto &Q : batch)
         std::cerr << Q << '\n';
+    std::cerr << std::endl;
 
     Scheduler S(C, 1);
     S.execute(batch);

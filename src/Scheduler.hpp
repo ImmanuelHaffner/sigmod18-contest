@@ -9,12 +9,12 @@
 /** This class implements query planning of whole batches (MQO) and concurrent execution of the queries. */
 class Scheduler
 {
-    private:
-    Catalog &catalog_;
-    std::size_t num_threads_; ///< number of available threads
+    public:
+    Catalog &catalog;
+    std::size_t num_threads; ///< number of available threads
 
     public:
-    Scheduler(Catalog &catalog, std::size_t num_threads) : catalog_(catalog), num_threads_(num_threads) { }
+    Scheduler(Catalog &catalog, std::size_t num_threads) : catalog(catalog), num_threads(num_threads) { }
 
     /** Executes a batch of queries. */
     void execute(std::vector<QueryDescription> &batch);

@@ -14,7 +14,6 @@ Relation::Relation(std::string filename)
     fd_ = open(filename_.c_str(), O_RDONLY);
     if (fd_ == -1)
         err(EXIT_FAILURE, "Failed to open relation file \"%s\"", filename_.c_str());
-    std::cerr << "opened " << filename << " with fd=" << fd_ << '\n';
 
     struct stat buf;
     if (fstat(fd_, &buf))
