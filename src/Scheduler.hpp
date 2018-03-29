@@ -17,5 +17,10 @@ class Scheduler
     Scheduler(Catalog &catalog, std::size_t num_threads) : catalog(catalog), num_threads(num_threads) { }
 
     /** Executes a batch of queries. */
-    void execute(std::vector<QueryDescription> &batch);
+    void execute(const std::vector<QueryDescription> &batch);
+
+    private:
+    void in_place_aggregation_join(const QueryDescription &Q,
+                                   std::size_t build_relation_id,
+                                   std::size_t build_attribute_id);
 };

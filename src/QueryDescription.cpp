@@ -91,7 +91,7 @@ std::ostream & operator<<(std::ostream &out, const QueryDescription &Q) {
         if (i != 0) out << '&';
         out << Q.joins[i];
     }
-    if (not Q.joins.empty())
+    if (not Q.joins.empty() and not Q.filters.empty())
         out << '&';
     for (std::size_t i = 0, end = Q.filters.size(); i != end; ++i) {
         if (i != 0) out << '&';

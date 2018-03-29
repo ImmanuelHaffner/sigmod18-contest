@@ -26,8 +26,13 @@ class Index
 
     /** Adds a field to the value part of a key-value-pair.  Returns the offset of the field inside the value part. */
     size_type add_field() { return num_fields_++; }
+    /** Adds `n` fields to the value part of a key-value-pair. */
+    size_type add_fields(std::size_t n) { return num_fields_ += n; }
     /** Return the number of fields in the value part. */
     size_type num_fields() const { return num_fields_; }
+
+    size_type size() const { return table_.size(); }
+    size_type capacity() const { return table_.capacity(); }
 
 
     std::pair<iterator, bool> put(uint64_t key) {
