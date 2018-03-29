@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.6)
-project("Sig18" CXX)
+project("Sig18" C CXX)
 
 find_package(Threads REQUIRED)
 

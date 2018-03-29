@@ -18,9 +18,4 @@ class Scheduler
 
     /** Executes a batch of queries. */
     void execute(const std::vector<QueryDescription> &batch);
-
-    private:
-    void in_place_aggregation_join(const QueryDescription &Q,
-                                   std::size_t build_relation_id,
-                                   std::size_t build_attribute_id);
 };

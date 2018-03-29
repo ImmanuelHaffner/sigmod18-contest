@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <thread>
 #include <utility>
 
 
@@ -32,13 +33,13 @@ struct Filter
 
     Filter(std::size_t attribute, uint64_t num) : attribute(attribute), num(num) { }
 
-    bool operator()(Relation &R, std::size_t i) const {
+    bool operator()(const Relation &R, std::size_t i) const {
         return Operation{}(R.get_column(attribute)[i], num);
     }
 };
 
 template<typename Op>
-void fill_index(Index &I, Relation &R, std::size_t relation_id, std::size_t attribute_id,
+void fill_index(Index &I, const Relation &R, std::size_t relation_id, std::size_t attribute_id,
                 std::vector<agg_t> &aggregates, Filter<Op> F)
 {
     for (std::size_t i = 0, end = R.rows(); i != end; ++i) {
@@ -52,7 +53,7 @@ void fill_index(Index &I, Relation &R, std::size_t relation_id, std::size_t attr
 }
 
 template<typename Op>
-void probe_index(Index &I, Relation &R, std::size_t relation_id, std::size_t attribute_id,
+void probe_index(Index &I, const Relation &R, std::size_t relation_id, std::size_t attribute_id,
                  std::vector<agg_t> &aggregates, Filter<Op> F)
 {
     for (std::size_t i = 0, end = R.rows(); i != end; ++i) {
@@ -67,102 +68,18 @@ void probe_index(Index &I, Relation &R, std::size_t relation_id, std::size_t att
     }
 }
 
-void Scheduler::execute(const std::vector<QueryDescription> &batch)
+/*-- Query processing routines ---------------------------------------------------------------------------------------*/
+/* Performs an in-place aggregation join of the entire query. */
+void in_place_aggregation_join(const Catalog &C,
+                               const QueryDescription &Q,
+                               std::size_t build_relation_id,
+                               std::size_t build_attribute_id,
+                               uint64_t *dst)
 {
-    /* TODO
-     * Tasks:
-     *   1. Identify frequently used relations.
-     *   2. Decide for which relation/attribute to build an index.
-     *   3. For each query, construct a query plan.
-     *   4. Distribute the query plans to different threads and execute them.
-     *   5. Join the threads and emit the results in order.
-     */
-
-    /* Compute a query plan. */
-    for (const auto &Q : batch) {
-#ifndef NDEBUG
-        std::cerr << "\nProcessing query " << Q << '\n';
-#endif
-
-        /* Check whether we can do an in-place aggregation join.  This is only possible, if for each relation, only one
-         * attribute is used to join.  This means, that all relations are joined by one "common" attribute.  */
-        const std::size_t num_relations = Q.relations.size();
-        struct join_order_t
-        {
-            QueryDescription::Attr attr;
-            std::size_t count;
-        };
-        join_order_t *join_table = new join_order_t[num_relations]();
-        auto update = [=](QueryDescription::Attr A) {
-            auto &e = join_table[A.relation];
-            if (e.count == 0) {
-                ++e.count;
-                e.attr = A;
-            } else if (e.count == std::size_t(-1)) {
-                /* nothing to do */
-            } else if (e.attr.attribute != A.attribute) {
-                e.attr.attribute = e.count = std::size_t(-1);
-            } else {
-                assure(e.count != std::size_t(-1));
-                assure(e.attr.relation == A.relation);
-                assure(e.attr.attribute == A.attribute);
-                ++e.count;
-            }
-        };
-        for (auto J : Q.joins) {
-            update(J.lhs);
-            update(J.rhs);
-        }
-
-        bool is_simple = true;
-        for (std::size_t i = 0; i != num_relations; ++i)
-            is_simple &= join_table[i].attr.attribute != std::size_t(-1);
-
-#ifndef NDEBUG
-        for (std::size_t i = 0; i != num_relations; ++i) {
-            auto &entry = join_table[i];
-            if (entry.attr.attribute == std::size_t(-1))
-                is_simple = false;
-        }
-        if (not is_simple)
-            std::cerr << " => in-place aggregation join not possible, must materialize intermediate results\n";
-        else
-            std::cerr << " => perform in-place aggregation join\n";
-#endif
-
-        if (not is_simple) {
-            /* TODO other query processing strategy */
-            std::cout << "<not supported>\n";
-            delete[] join_table;
-            continue;
-        }
-
-        /* Choose build relation.  TODO use selectivities of filters. */
-        std::size_t build_relation_id;
-        std::size_t relation_size = std::numeric_limits<std::size_t>::max();
-        for (std::size_t i = 0; i != Q.relations.size(); ++i) {
-            auto &rel = catalog[Q.relations[i]];
-            if (rel.rows() < relation_size) {
-                relation_size = rel.rows();
-                build_relation_id = i;
-            }
-        }
-        std::size_t build_attribute_id = join_table[build_relation_id].attr.attribute;
-        delete[] join_table;
-
-        in_place_aggregation_join(Q, build_relation_id, build_attribute_id);
-    }
-}
-
-void Scheduler::in_place_aggregation_join(const QueryDescription &Q,
-                                          std::size_t build_relation_id,
-                                          std::size_t build_attribute_id)
-{
-    const auto time_start = high_resolution_clock::now();
     const auto num_relations = Q.relations.size();
 
     /* Get a handle on the relation. */
-    Relation &build_relation = catalog[Q.relations[build_relation_id]];
+    const Relation &build_relation = C[Q.relations[build_relation_id]];
 
     /* Create the index.  TODO Use a better size estimate. */
     Index I(uint64_t(-1), build_relation.rows());
@@ -216,7 +133,7 @@ void Scheduler::in_place_aggregation_join(const QueryDescription &Q,
     /* Evaluate all joins.  Use a filter, if available. */
     for (auto J : Q.joins) {
         auto probe = J.lhs.relation == build_relation_id ? J.rhs : J.lhs;
-        auto &R = catalog[Q.relations[probe.relation]];
+        auto &R = C[Q.relations[probe.relation]];
 
         /* Collect the aggregates to perform during this join. */
         aggregates.clear();
@@ -280,20 +197,131 @@ void Scheduler::in_place_aggregation_join(const QueryDescription &Q,
             sums[i] += count * values[num_relations + i];
         }
     }
-    const auto time_stop = high_resolution_clock::now();
 
-    for (std::size_t i = 0; i != Q.projections.size(); ++i) {
-        if (i != 0) std::cout << " ";
-        if (total_count)
-            std::cout << sums[i];
-        else
-            std::cout << "NULL";
-    }
-    std::cout << std::endl;
-#ifndef NDEBUG
-    std::cerr << "time: " << duration_cast<nanoseconds>(time_stop - time_start).count() / 1e6 << " milliseconds";
-    std::cerr << std::endl;
-#endif
+    dst[0] = total_count;
+    for (std::size_t i = 0; i != Q.projections.size(); ++i)
+        dst[i + 1] = sums[i];
 
     delete[] sums;
+}
+
+/** Executes a single query, and writes its result to destination `dst`. */
+void exec(const Catalog &C, uint64_t *dst, const QueryDescription &Q)
+{
+    /* Check whether we can do an in-place aggregation join.  This is only possible, if for each relation, only one
+     * attribute is used to join.  This means, that all relations are joined by one "common" attribute.  */
+    const std::size_t num_relations = Q.relations.size();
+    struct join_order_t
+    {
+        QueryDescription::Attr attr;
+        std::size_t count;
+    };
+    join_order_t *join_table = new join_order_t[num_relations]();
+    auto update = [=](QueryDescription::Attr A) {
+        auto &e = join_table[A.relation];
+        if (e.count == 0) {
+            ++e.count;
+            e.attr = A;
+        } else if (e.count == std::size_t(-1)) {
+            /* nothing to do */
+        } else if (e.attr.attribute != A.attribute) {
+            e.attr.attribute = e.count = std::size_t(-1);
+        } else {
+            assure(e.count != std::size_t(-1));
+            assure(e.attr.relation == A.relation);
+            assure(e.attr.attribute == A.attribute);
+            ++e.count;
+        }
+    };
+    for (auto J : Q.joins) {
+        update(J.lhs);
+        update(J.rhs);
+    }
+
+    bool is_simple = true;
+    for (std::size_t i = 0; i != num_relations; ++i)
+        is_simple &= join_table[i].attr.attribute != std::size_t(-1);
+
+#ifndef NDEBUG
+    for (std::size_t i = 0; i != num_relations; ++i) {
+        auto &entry = join_table[i];
+        if (entry.attr.attribute == std::size_t(-1))
+            is_simple = false;
+    }
+    if (not is_simple)
+        std::cerr << " => in-place aggregation join not possible, must materialize intermediate results\n";
+    else
+        std::cerr << " => perform in-place aggregation join\n";
+#endif
+
+    if (not is_simple) {
+        /* TODO other query processing strategy */
+#ifndef NDEBUG
+        std::cerr << "<not supported>\n";
+#endif
+        dst[0] = 0; // FIXME
+        delete[] join_table;
+        return;
+    }
+
+    /* Choose build relation.  TODO use selectivities of filters. */
+    std::size_t build_relation_id;
+    std::size_t relation_size = std::numeric_limits<std::size_t>::max();
+    for (std::size_t i = 0; i != Q.relations.size(); ++i) {
+        auto &rel = C[Q.relations[i]];
+        if (rel.rows() < relation_size) {
+            relation_size = rel.rows();
+            build_relation_id = i;
+        }
+    }
+    std::size_t build_attribute_id = join_table[build_relation_id].attr.attribute;
+    delete[] join_table;
+
+    in_place_aggregation_join(C, Q, build_relation_id, build_attribute_id, dst);
+}
+
+/*-- Scheduler -------------------------------------------------------------------------------------------------------*/
+void Scheduler::execute(const std::vector<QueryDescription> &batch)
+{
+    /* TODO
+     * Tasks:
+     *   1. Identify frequently used relations.
+     *   2. Decide for which relation/attribute to build an index.
+     *   3. For each query, construct a query plan.
+     *   4. Distribute the query plans to different threads and execute them.
+     *   5. Join the threads and emit the results in order.
+     */
+
+    std::thread *threads = new std::thread[batch.size()];
+    uint64_t **results = new uint64_t*[batch.size()];
+
+    auto fn = [](Catalog *C, uint64_t *dst, const QueryDescription *Q) { exec(*C, dst, *Q); };
+
+    /* Compute a query plan. */
+    for (std::size_t i = 0; i != batch.size(); ++i) {
+        const auto &Q = batch[i];
+        /* Allocate storage for the results. */
+        results[i] = new uint64_t[Q.projections.size() + 1];
+#ifndef NDEBUG
+        std::cerr << "\nProcessing query " << Q << '\n';
+#endif
+
+        new (&threads[i]) std::thread(fn, &catalog, results[i], &Q);
+    }
+
+    for (std::size_t i = 0; i != batch.size(); ++i) {
+        threads[i].join();
+        auto &Q = batch[i];
+        for (std::size_t j = 0; j != Q.projections.size(); ++j) {
+            if (j != 0) std::cout << ' ';
+            if (results[i][0] == 0)
+                std::cout << "NULL";
+            else
+                std::cout << results[i][j + 1];
+        }
+        std::cout << '\n';
+        delete[] results[i];
+    }
+    delete[] results;
+    delete[] threads;
 }
