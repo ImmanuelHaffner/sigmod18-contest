@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <utility>
 #include <vector>
 
 /** This class represents one query of a batch from the workload. */
@@ -12,6 +13,8 @@ class QueryDescription
     {
         std::size_t relation;
         std::size_t attribute;
+        bool operator==(Attr other) const { return relation == other.relation and attribute == other.attribute; }
+        bool operator!=(Attr other) const { return not operator==(other); }
         friend std::ostream & operator<<(std::ostream &out, Attr A) { return out << A.relation << '.' << A.attribute; }
     };
 
@@ -19,6 +22,18 @@ class QueryDescription
     {
         Attr lhs;
         Attr rhs;
+
+        Join(Attr lhs, Attr rhs) {
+            using std::swap;
+            if (lhs.relation > rhs.relation)
+                swap(lhs, rhs);
+            this->lhs = lhs;
+            this->rhs = rhs;
+        }
+
+        bool operator==(const Join &other) const { return lhs == other.lhs and rhs == other.rhs; }
+        bool operator!=(const Join &other) const { return not operator==(other); }
+
         friend std::ostream & operator<<(std::ostream &out, const Join &J) { return out << J.lhs << '=' << J.rhs; }
     };
 

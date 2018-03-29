@@ -1,5 +1,6 @@
 #include "QueryDescription.hpp"
 
+#include <algorithm>
 #include <err.h>
 
 
@@ -47,8 +48,12 @@ QueryDescription QueryDescription::Parse(std::istream &in)
             in.get();
             std::size_t attribute_right;
             in >> attribute_right;
-            if (in.good())
-                Q.joins.push_back({lhs, {std::size_t(num), attribute_right}});
+            if (in.good()) {
+                /* insert the join predicate, if it is not a duplicate */
+                Join J(lhs, {std::size_t(num), attribute_right});
+                if (std::find(Q.joins.begin(), Q.joins.end(), J) == Q.joins.end())
+                    Q.joins.push_back(J);
+            }
         } else { /* we parsed a constant */
             if (in.good())
                 Q.filters.push_back({lhs, num, op});
