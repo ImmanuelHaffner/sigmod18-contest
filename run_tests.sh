@@ -2,5 +2,10 @@
 
 DIR=$(pwd)
 
-cd workloads/small/
-"${DIR}/build_debug/bin/harness" small.init small.work small.result "${DIR}/build_debug/bin/main"
+cd workloads
+for w in ./*; do
+    w=$(basename "${w}")
+    echo "Testing ${w} workload"
+    cd "${w}"
+    "${DIR}/build_debug/bin/harness" *.init *.work *.result "${DIR}/build_debug/bin/main"
+done
