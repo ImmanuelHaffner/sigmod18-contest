@@ -31,6 +31,9 @@ int main()
     std::cerr << '\n';
 #endif
 
+    /*-- Initialize the scheduler.  ----------------------------------------------------------------------------------*/
+    Scheduler S(C, 1);
+
     /*-- Read the workload batches. ----------------------------------------------------------------------------------*/
     std::vector<QueryDescription> batch;
     for (;;) {
@@ -38,14 +41,21 @@ int main()
         if (not std::cin.good())
             break;
         batch.push_back(Q);
-        if (std::cin.peek() == 'F')
-            break;
+        if (std::cin.peek() == 'F') {
+            std::cin.get();
+            S.execute(batch);
+#ifndef NDEBUG
+            std::cerr << "\n\n################################################################################\n"
+                      <<     "##  END OF BATCH  ##############################################################\n"
+                      <<     "################################################################################\n\n";
+#endif
+            batch.clear();
+        }
+        if (std::cin.peek() == '\n') { // end of workload
+            std::cin.get();
+            std::cin.peek();
+            if (not std::cin.good())
+                break;
+        }
     }
-
-    for (auto &Q : batch)
-        std::cerr << Q << '\n';
-    std::cerr << std::endl;
-
-    Scheduler S(C, 1);
-    S.execute(batch);
 }
