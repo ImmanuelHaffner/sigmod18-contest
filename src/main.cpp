@@ -28,7 +28,6 @@ int main()
     std::cerr << "loaded relations:\n";
     for (auto &r : C.relations())
         std::cerr << "  * " << *r << '\n';
-    std::cerr << '\n';
 #endif
 
     /*-- Initialize the scheduler.  ----------------------------------------------------------------------------------*/
@@ -43,12 +42,10 @@ int main()
         batch.push_back(Q);
         if (std::cin.peek() == 'F') {
             std::cin.get();
-            S.execute(batch);
 #ifndef NDEBUG
-            std::cerr << "\n\n################################################################################\n"
-                      <<     "##  END OF BATCH  ##############################################################\n"
-                      <<     "################################################################################\n\n";
+            std::cerr << "\n###  BATCH  ####################################################################\n";
 #endif
+            S.execute(batch);
             batch.clear();
         }
         if (std::cin.peek() == '\n') { // end of workload
