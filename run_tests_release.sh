@@ -8,4 +8,5 @@ for w in ./*; do
     echo "Testing ${w} workload"
     cd "${w}"
     "${DIR}/build_release/bin/harness" *.init *.work *.result "${DIR}/build_release/bin/main"
+    cd ..
 done
