@@ -75,14 +75,8 @@ void QueryExecutor::execute()
 
     /* Check whether we can do an in-place aggregation join.  This is only possible, if for each relation, only one
      * attribute is used to join.  This means, that all relations are joined by one "common" attribute.  */
-    struct join_count_t
-    {
-        QueryDescription::Attr attr;
-        std::size_t count;
-    };
-    join_count_t *join_counters = new join_count_t[num_relations]();
     auto update = [=](QueryDescription::Attr A) {
-        auto &e = join_counters[A.relation];
+        auto &e = join_counters_[A.relation];
         if (e.count == 0) {
             ++e.count;
             e.attr = A;
@@ -104,12 +98,10 @@ void QueryExecutor::execute()
 
     bool is_simple = true;
     for (std::size_t i = 0; i != num_relations; ++i)
-        is_simple &= join_counters[i].attr.attribute != std::size_t(-1);
+        is_simple &= join_counters_[i].attr.attribute != std::size_t(-1);
 
-    if (not is_simple) {
-        delete[] join_counters;
+    if (not is_simple)
         return;
-    }
 
     /* Find the smallest relation, considering sampled filters and unfiltered relations. */
     compute_size_estimates();
@@ -121,9 +113,9 @@ void QueryExecutor::execute()
             min_relation = i;
         }
     }
-    std::size_t min_attribute = join_counters[min_relation].attr.attribute;
-    delete[] join_counters;
+    std::size_t min_attribute = join_counters_[min_relation].attr.attribute;
 
+    /* Perform the in-place aggregation join. */
     in_place_aggregation_join(min_relation, min_attribute);
 }
 
@@ -179,20 +171,10 @@ void QueryExecutor::in_place_aggregation_join(std::size_t build_relation, std::s
     }
 
     /* Evaluate all joins.  Use a filter, if available. */
-    hash_set<std::size_t> joined_relations(std::size_t(-1), 8);
-    joined_relations.insert(build_relation);
-    for (auto J : query.joins) {
-        //auto probe = J.lhs.relation == build_relation ? J.rhs : J.lhs;
-        QueryDescription::Attr probe;
-        if (not joined_relations(J.lhs.relation))
-            probe = J.lhs;
-        else if (not joined_relations(J.rhs.relation))
-            probe = J.rhs;
-        else {
-            /* TODO: cyclic join, maybe requires filter. */
-            continue; // XXX
-        }
-        joined_relations.insert(probe.relation);
+    for (std::size_t i = 0; i != query.relations.size(); ++i) {
+        if (i == build_relation) continue;
+        /* Find the join attribute. */
+        auto probe = join_counters_[i].attr;
         auto &R = C[query.relations[probe.relation]];
 
         /* Collect the aggregates to perform during this join. */
