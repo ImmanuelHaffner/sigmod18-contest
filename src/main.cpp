@@ -44,6 +44,8 @@ int main()
             std::cin.get();
 #ifndef NDEBUG
             std::cerr << "\n###  BATCH  ####################################################################\n";
+            for (auto &Q : batch)
+                std::cerr << Q << '\n';
 #endif
             S.execute(batch);
             batch.clear();

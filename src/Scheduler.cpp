@@ -24,14 +24,21 @@ void Scheduler::execute(const std::vector<QueryDescription> &batch)
 
     auto fn = [](QueryExecutor *q) { q->execute(); };
 
+    /* Execute all queries of the batch independently. */
     for (std::size_t i = 0; i != batch.size(); ++i) {
         const auto &Q = batch[i];
         new (&queries[i]) QueryExecutor(Q);
         new (&threads[i]) std::thread(fn, &queries[i]);
+#ifndef NDEBUG
+        threads[i].join();
+#endif
     }
 
+    /* Emit the computed results in-order. */
     for (std::size_t i = 0; i != batch.size(); ++i) {
+#ifdef NDEBUG
         threads[i].join();
+#endif
         auto &Q = batch[i];
         auto &QE = queries[i];
         for (std::size_t j = 0; j != Q.projections.size(); ++j) {
