@@ -2,7 +2,6 @@
 
 #include "HashTable.hpp"
 #include "Index.hpp"
-#include "QueryPlanning.hpp"
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
