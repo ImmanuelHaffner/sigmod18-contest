@@ -7,13 +7,19 @@ Immanuel Haffner <br>
 Saarland Informatics Campus <br>
 Big Data Analytics Group
 
+## Misc
+
+We don't need MQO.  Execute all queries independently.  Most queries are "simple", so we can do the in-place aggregation
+join.  Sharing intermediate results would be very complicated and the gain is questionable.
+For simplicitly, each query is planned and executed independently.
+
 ## Features
 
 * Compute a join matrix for each batch.  The join matrix is a diagonal matrix, which counts how often two relations are
   joined together.  The join matrix helps to decide which relations or intermediate results to cache for future
   workloads.
 
-* **TODO:** Joins implicitly aggregate their result by the join predicate of the next (parent) join.  This minimizes
+* Joins implicitly aggregate their result by the join predicate of the next (parent) join.  This minimizes
   materialization.
 
 
@@ -29,5 +35,4 @@ Big Data Analytics Group
       `0.1=1.0` = `1.0=0.1`)
     * Small, Batch 4 Q3: `7 1 3|0.2=1.0&1.0=2.1&1.0=0.2&0.2>6082|2.3 2.1` (Actually a duplicate join predicate:
       `0.2=1.0` = `1.0=0.2`)
-
-
+* Support cyclic joins.  Break the cycle by removing the most costly, redundant join predicate(s).
