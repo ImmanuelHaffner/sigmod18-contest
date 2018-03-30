@@ -2,6 +2,7 @@ SET(SIG18_SOURCES
     main.cpp
     Catalog.cpp
     QueryDescription.cpp
+    QueryExecutor.cpp
     Relation.cpp
     Scheduler.cpp
     )

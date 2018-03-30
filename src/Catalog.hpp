@@ -10,6 +10,13 @@
 class Catalog
 {
     private:
+    static Catalog the_catalog;
+    Catalog() = default;
+
+    public:
+    static Catalog & Get() { return the_catalog; }
+
+    private:
     std::vector<std::unique_ptr<Relation>> relations_;
 
     public:

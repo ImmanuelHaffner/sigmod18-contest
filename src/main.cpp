@@ -14,7 +14,7 @@
 int main()
 {
     /*-- Read the input relations. -----------------------------------------------------------------------------------*/
-    Catalog C;
+    Catalog &C = Catalog::Get();
     std::string buf;
     for (;;) {
         std::cin >> buf;
