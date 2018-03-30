@@ -2,6 +2,7 @@
 
 #include "Catalog.hpp"
 #include "Index.hpp"
+#include <algorithm>
 
 
 /*-- Helper types & functions ----------------------------------------------------------------------------------------*/
@@ -70,7 +71,6 @@ float sample_filter(const Relation &R, Filter<Op> F)
 /*-- QueryExecutor ---------------------------------------------------------------------------------------------------*/
 void QueryExecutor::execute()
 {
-    const Catalog &C = Catalog::Get();
     const std::size_t num_relations = query.relations.size();
 
     /* Check whether we can do an in-place aggregation join.  This is only possible, if for each relation, only one
@@ -111,20 +111,20 @@ void QueryExecutor::execute()
         return;
     }
 
-    /* Choose build relation.  TODO use selectivities of filters. */
-    std::size_t build_relation;
-    std::size_t relation_size = std::numeric_limits<std::size_t>::max();
+    /* Find the smallest relation, considering sampled filters and unfiltered relations. */
+    compute_size_estimates();
+    std::size_t min_size = std::numeric_limits<std::size_t>::max();
+    std::size_t min_relation;
     for (std::size_t i = 0; i != query.relations.size(); ++i) {
-        auto &rel = C[query.relations[i]];
-        if (rel.rows() < relation_size) {
-            relation_size = rel.rows();
-            build_relation = i;
+        if (size_estimates_[i] < min_size) {
+            min_size = size_estimates_[i];
+            min_relation = i;
         }
     }
-    std::size_t build_attribute = join_counters[build_relation].attr.attribute;
+    std::size_t min_attribute = join_counters[min_relation].attr.attribute;
     delete[] join_counters;
 
-    in_place_aggregation_join(build_relation, build_attribute);
+    in_place_aggregation_join(min_relation, min_attribute);
 }
 
 void QueryExecutor::in_place_aggregation_join(std::size_t build_relation, std::size_t build_attribute)
@@ -139,7 +139,7 @@ void QueryExecutor::in_place_aggregation_join(std::size_t build_relation, std::s
     I.add_fields(query.relations.size()); // add a counter for each relation
     I.add_fields(query.projections.size()); // add a field for each aggregate
 
-    /* Collect the attributes to aggregate when building the relation. */
+    /* Collect the attributes to aggregate when building the index. */
     for (std::size_t i = 0; i != query.projections.size(); ++i) {
         auto P = query.projections[i];
         if (P.relation == build_relation)
@@ -179,8 +179,20 @@ void QueryExecutor::in_place_aggregation_join(std::size_t build_relation, std::s
     }
 
     /* Evaluate all joins.  Use a filter, if available. */
+    hash_set<std::size_t> joined_relations(std::size_t(-1), 8);
+    joined_relations.insert(build_relation);
     for (auto J : query.joins) {
-        auto probe = J.lhs.relation == build_relation ? J.rhs : J.lhs;
+        //auto probe = J.lhs.relation == build_relation ? J.rhs : J.lhs;
+        QueryDescription::Attr probe;
+        if (not joined_relations(J.lhs.relation))
+            probe = J.lhs;
+        else if (not joined_relations(J.rhs.relation))
+            probe = J.rhs;
+        else {
+            /* TODO: cyclic join, maybe requires filter. */
+            continue; // XXX
+        }
+        joined_relations.insert(probe.relation);
         auto &R = C[query.relations[probe.relation]];
 
         /* Collect the aggregates to perform during this join. */
@@ -246,13 +258,9 @@ void QueryExecutor::in_place_aggregation_join(std::size_t build_relation, std::s
 
 void QueryExecutor::compute_size_estimates()
 {
-    std::cerr << ">>> QueryExecutor::compute_size_estimates()\n";
     const Catalog &C = Catalog::Get();
-    for (std::size_t i = 0; i != query.relations.size(); ++i) {
-        const auto &R = C[query.relations[i]];
-        size_estimates_[i] = R.rows();
-        std::cerr << "  - relation r" << query.relations[i] << " has " << R.rows() << " rows\n";
-    }
+    for (std::size_t i = 0; i != query.relations.size(); ++i)
+        size_estimates_[i] = C[query.relations[i]].rows();
     for (auto F : query.filters) {
         const std::size_t relation = F.lhs.relation;
         auto &R = C[query.relations[relation]];
@@ -269,11 +277,6 @@ void QueryExecutor::compute_size_estimates()
                 selectivity = sample_filter(R, Filter<std::greater<uint64_t>>(F.lhs.attribute, F.value));
                 break;
         }
-        std::size_t expected_size = R.rows() * selectivity;
-#ifndef NDEBUG
-        std::cerr << "  - filter relation r" << query.relations[F.lhs.relation] << " with " << F
-                  << ", sampled selectivity is " << selectivity * 100 << "%, expected size is " << expected_size << '\n';
-#endif
-        size_estimates_[relation] = std::min(size_estimates_[relation], expected_size);
+        size_estimates_[relation] = std::min(size_estimates_[relation], std::size_t(R.rows() * selectivity));
     }
 }
