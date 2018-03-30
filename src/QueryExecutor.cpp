@@ -57,6 +57,16 @@ void probe_index(Index &I, const Relation &R, std::size_t relation_id, std::size
     }
 }
 
+template<typename Op>
+float sample_filter(const Relation &R, Filter<Op> F)
+{
+    constexpr std::size_t SAMPLE_SIZE = 1024;
+    std::size_t qualified = 0;
+    for (std::size_t i = 0; i != SAMPLE_SIZE; ++i)
+        qualified += F(R, i);
+    return float(qualified) / SAMPLE_SIZE;
+}
+
 /*-- QueryExecutor ---------------------------------------------------------------------------------------------------*/
 void QueryExecutor::execute()
 {
