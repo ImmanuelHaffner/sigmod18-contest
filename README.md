@@ -27,6 +27,7 @@ For simplicitly, each query is planned and executed independently.
 
 * Support self-joins
     * Small, Batch 2 Q5: `3 0 13 13|0.2=1.0&1.0=2.1&2.1=3.2&0.2<74|1.2 2.5 3.5`
+        * surprisingly resolved by avoiding duplicate join with r13; one of the join attributes must be unique
 * Support multiple join predicates for one join (e.g. `A.x = B.A_x AND A.y = B.A_y`, where `(A.x, A.y)` is the primary
   key of `A`
     * Small, Batch 2 Q10: `9 1 11|0.2=1.0&1.0=2.1&1.0=0.2&0.3>3991|1.0` (Actually a duplicate join predicate: `0.2=1.0` =
