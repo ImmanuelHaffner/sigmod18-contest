@@ -243,3 +243,37 @@ void QueryExecutor::in_place_aggregation_join(std::size_t build_relation, std::s
         }
     }
 }
+
+void QueryExecutor::compute_size_estimates()
+{
+    std::cerr << ">>> QueryExecutor::compute_size_estimates()\n";
+    const Catalog &C = Catalog::Get();
+    for (std::size_t i = 0; i != query.relations.size(); ++i) {
+        const auto &R = C[query.relations[i]];
+        size_estimates_[i] = R.rows();
+        std::cerr << "  - relation r" << query.relations[i] << " has " << R.rows() << " rows\n";
+    }
+    for (auto F : query.filters) {
+        const std::size_t relation = F.lhs.relation;
+        auto &R = C[query.relations[relation]];
+        float selectivity;
+        switch (F.op) {
+            default: unreachable("invalid filter");
+            case '=':
+                selectivity = sample_filter(R, Filter<std::equal_to<uint64_t>>(F.lhs.attribute, F.value));
+                break;
+            case '<':
+                selectivity = sample_filter(R, Filter<std::less<uint64_t>>(F.lhs.attribute, F.value));
+                break;
+            case '>':
+                selectivity = sample_filter(R, Filter<std::greater<uint64_t>>(F.lhs.attribute, F.value));
+                break;
+        }
+        std::size_t expected_size = R.rows() * selectivity;
+#ifndef NDEBUG
+        std::cerr << "  - filter relation r" << query.relations[F.lhs.relation] << " with " << F
+                  << ", sampled selectivity is " << selectivity * 100 << "%, expected size is " << expected_size << '\n';
+#endif
+        size_estimates_[relation] = std::min(size_estimates_[relation], expected_size);
+    }
+}
