@@ -43,4 +43,6 @@ class QueryExecutor
     void in_place_aggregation_join(std::size_t build_relation, std::size_t build_attribute);
     /** Computes size estimates for all relations, sampling filters to estimate selectivities. */
     void compute_size_estimates();
+    /** Try to simplify a query, such that it can be computed by an in-place aggreation join. */
+    bool simplify();
 };

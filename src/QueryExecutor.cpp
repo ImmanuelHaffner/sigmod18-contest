@@ -3,6 +3,7 @@
 #include "Catalog.hpp"
 #include "Index.hpp"
 #include <algorithm>
+#include <sstream>
 
 
 /*-- Helper types & functions ----------------------------------------------------------------------------------------*/
@@ -100,8 +101,13 @@ void QueryExecutor::execute()
     for (std::size_t i = 0; i != num_relations; ++i)
         is_simple &= join_counters_[i].attr.attribute != std::size_t(-1);
 
-    if (not is_simple)
+    if (not is_simple) {
+        std::ostringstream oss;
+        oss << query << '\n';
+        std::cerr << oss.str();
+        simplify();
         return;
+    }
 
     /* Find the smallest relation, considering sampled filters and unfiltered relations. */
     compute_size_estimates();
@@ -261,4 +267,49 @@ void QueryExecutor::compute_size_estimates()
         }
         size_estimates_[relation] = std::min(size_estimates_[relation], std::size_t(R.rows() * selectivity));
     }
+}
+
+bool QueryExecutor::simplify()
+{
+    const Catalog &C = Catalog::Get();
+    std::vector<QueryDescription::Attr> check_for_uniqueness;
+    check_for_uniqueness.reserve(8);
+
+    /* Identify all relations that have multiple join attributes. */
+    for (std::size_t i = 0; i != query.relations.size(); ++i) {
+        if (join_counters_[i].count == std::size_t(-1)) {
+            std::cerr << "relation r" << query.relations[i] << " has multiple join attributes:\n";
+            for (auto J : query.joins) {
+                if (J.lhs.relation == i or J.rhs.relation == i) {
+                    std::cerr << "  ` " << J << '\n';
+                    check_for_uniqueness.push_back(J.lhs.relation == i ? J.lhs : J.rhs);
+                }
+            }
+        }
+    }
+
+    std::cerr << "checking uniqueness of join attributes:\n";
+    for (auto A : check_for_uniqueness) {
+        std::cerr << "  ` checking " << A << ": ";
+        const Relation &R = C[query.relations[A.relation]];
+        auto set = new hash_set<uint64_t>(uint64_t(-1));
+        const uint64_t *column = R.get_column(A.attribute);
+
+        std::size_t i = 0;
+        for (std::size_t end = R.rows(); i != end; ++i) {
+            uint64_t v = column[i];
+            if (set->has(v)) goto found_duplicate;
+            else set->insert(v);
+        }
+        std::cerr << "no duplicates\n";
+        goto end;
+
+found_duplicate:
+        std::cerr << "has duplicate " << column[i] << '\n';
+
+end:
+        delete set;
+    }
+
+    return false;
 }
