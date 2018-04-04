@@ -139,7 +139,8 @@ struct HashTable
     }
     const_iterator find(const key_type &key) const { /* TODO 3.1 */ return mkiter(const_cast<HashTable*>(this)->find(key).ptr); }
 
-    bool operator()(const key_type &key) const { return find(key) != end(); }
+    bool has(const key_type &key) const { return find(key) != end(); }
+    bool operator()(const key_type &key) const { return has(key); }
 
     /** Returns an iterator to the element in the table and a flag whether insertion succeeded.  The flag is true, if
      * the element was newly inserted into the table, and false otherwise.  The iterator designates the newly inserted
